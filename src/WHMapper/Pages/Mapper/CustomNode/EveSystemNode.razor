@@ -4,23 +4,23 @@
 
 
 <MudCard Outlined="true" Style="@systemStyle" Class="_class">
-    <MudCardHeader Class="mb-n2 pa-1">
+    <MudCardHeader Class="mb-n2 pa-1 mx-1">
         <CardHeaderAvatar>
-            <MudBadge Origin="Origin.TopRight" Overlap="true" Content=@Node.NameExtension Visible=@((Node.NameExtension!=null) ? true : false) Bordered="true" Color="Color.Dark">
-                <MudAvatar class="mt-1" Style="@($"color:{_systemColor}; border-color:{_systemColor}; font-weight:bold;")" Size="Size.Small" Variant="Variant.Outlined">@Node.SystemType.ToDescriptionString()</MudAvatar>
+            <MudBadge Origin="Origin.TopRight" Overlap="false" Content=@Node.NameExtension Visible=@((Node.NameExtension!=null) ? true : false) Bordered="true" Color="Color.Dark">
+                <MudText Typo="Typo.body1" Style="@($"color:{_systemColor}; border-color:{_systemColor}; font-weight:bold;")">@Node.SystemType.ToDescriptionString()</MudText>
             </MudBadge>
         </CardHeaderAvatar>
         <CardHeaderContent>
-            <MudText class="ml-n1 pr-2 mt-2" Typo="Typo.body2" Style="font-weight:bold;">@Node.Name</MudText>
+            <MudText class="ml-n3 mr-2" Typo="Typo.body1" Style="font-weight:bold;">@Node.Name</MudText>
         </CardHeaderContent>
-        <CardHeaderActions Class="mt-2">
+        <CardHeaderActions>
             @if (Locked)
             {
-                <MudIcon Icon="@Icons.Material.Sharp.Lock" DisableElevation="true" Size="Size.Small" Style="margin-top:-3px" />
+                <MudIcon Class="mt-3 mr-2" Icon="@Icons.Material.Sharp.Lock" DisableElevation="true" Size="Size.Small" Style="margin-top:-3px" />
             }
             @if (Node != null && Node.Effect != WHMapper.Models.DTO.EveMapper.Enums.WHEffect.None)
             {
-                <MudTooltip Text="@Node.Effect.ToString()" Arrow="true" Placement="Placement.Bottom">
+                <MudTooltip Class="mt-3 mr-2" Text="@Node.Effect.ToString()" Arrow="true" Placement="Placement.Bottom">
                     <ChildContent>
                         <MudIcon Icon="@Icons.Material.Filled.Square" DisableElevation="true" Style="@($"color:{_whEffectColor};")" Size="Size.Small" />
                     </ChildContent>
@@ -40,8 +40,20 @@
         </CardHeaderActions>
     </MudCardHeader>
 
-    <MudCardContent Class="d-flex pa-1 pr-2 justify-space-between">
-        <div Class="d-flex justify-start">
+    <MudCardContent Class="d-flex pa-1 mx-1 flex-column justify-space-between">
+        <div Class="d-flex flex-row justify-start">
+            <MudText Class="d-flex justify-start" Typo="Typo.caption">@Node.SystemShortDesc.ToString()</MudText>
+            <div Class="d-flex justify-end">
+                @if (Node != null && Node.Statics != null && Node?.Statics.Count() > 0)
+                {
+                    @foreach (var item in Node.Statics)
+                    {
+                        <MudText Class="align-self-stretch ml-1" Typo="Typo.body2" Style="@($"color:{WHColorHelper.GetSystemTypeColor(@item.EveSystemDestinationType)};")">@item.EveSystemDestinationType.ToString()</MudText>
+                    }
+                }
+            </div>
+        </div>
+        <div Class="d-flex">
             @if (Node != null && Node.ConnectedUsers != null && Node.ConnectedUsers.FirstOrDefault() != null)
             {
                 <MudTooltip Typo="Typo.caption" Arrow="true" Placement="Placement.Bottom">
@@ -52,7 +64,7 @@
                         <MudPaper Class="d-flex flex-column flex-grow-1 gap-0" Elevation="0">
                             @foreach (var user in @Node.ConnectedUsers)
                             {
-                                <MudText class="ml-1 mr-1" Typo="Typo.caption">@user</MudText>
+                                <MudText class="mx-1" Typo="Typo.caption">@user</MudText>
                             }
                         </MudPaper>
                     </TooltipContent>
@@ -63,15 +75,6 @@
                 <MudIcon Icon="@Icons.Material.Filled.Group" Color=Color.Transparent Size="Size.Small" />
             }
             <MudText Class="align-self-stretch ml-1 mt-1" Typo="Typo.caption">@Node?.ConnectedUsers?.FirstOrDefault()</MudText>
-        </div>
-        <div Class="d-flex justify-end">
-            @if (Node != null && Node.Statics != null && Node?.Statics.Count() > 0)
-            {
-                @foreach (var item in Node.Statics)
-                {
-                    <MudText Class="align-self-stretch mt-1 ml-1" Typo="Typo.body2" Style="@($"color:{WHColorHelper.GetSystemTypeColor(@item.EveSystemDestinationType)};")">@item.EveSystemDestinationType.ToString()</MudText>
-                }
-            }
         </div>
     </MudCardContent>
 </MudCard>
