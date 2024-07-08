@@ -1,18 +1,14 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc;
 using WHMapper.Models.Custom.Node;
 using WHMapper.Models.Db;
-using WHMapper.Models.DTO.EveAPI.Universe;
 using WHMapper.Models.DTO.EveMapper;
 using WHMapper.Models.DTO.EveMapper.Enums;
+using WHMapper.Models.DTO.EveMapper.EveEntity;
 using WHMapper.Models.DTO.SDE;
 using WHMapper.Repositories.WHNotes;
 using WHMapper.Services.Anoik;
-using WHMapper.Services.EveAPI;
-using WHMapper.Services.EveAPI.Universe;
 using WHMapper.Services.SDE;
 
 namespace WHMapper.Services.EveMapper
@@ -22,12 +18,7 @@ namespace WHMapper.Services.EveMapper
         private const string WH_VALIDATION_REGEX = "J[0-9]{6}|Thera|J1226-0";
         private const string REGION_POCHVVEN_NAME = "Pochven";
 
-
         private const int GROUPE_WORMHOLE_ID = 988;
-        private const int DOGMA_ATTR_TARGET_SYSTEM_CLASS_FOR_WORMHOLES_ID = 1381;
-        private const int DOGMA_ATTR_DISTRIBUTION_ID_OF_TARGET_WORMHOLE_DISTRIBUTION_ID = 1457;
-
-
         private const string C14_NAME = "J055520";
         private const string C15_NAME = "J110145";
         private const string C16_NAME = "J164710";
@@ -47,19 +38,19 @@ namespace WHMapper.Services.EveMapper
 
         private readonly ILogger? _logger;
 
-        private readonly IUniverseServices? _universeServices = null!;
-        private readonly IAnoikServices? _anoikServices = null!;
-        private readonly ISDEServices? _sdeServices = null!;
-        private readonly IWHNoteRepository? _noteService = null!;
+        private readonly IAnoikServices _anoikServices;
+        private readonly ISDEService _sdeServices;
+        private readonly IWHNoteRepository _noteServices;
+        private readonly IEveMapperEntity _eveMapperEntity;
 
-        public EveMapperHelper(ILogger<EveMapperHelper> logger, IEveAPIServices eveAPIServices, ISDEServices sdeServices, IAnoikServices anoikServices, IWHNoteRepository noteService)
+        public EveMapperHelper(ILogger<EveMapperHelper> logger, IEveMapperEntity eveMapperEntity, ISDEService sdeServices, IAnoikServices anoikServices, IWHNoteRepository noteServices)
         {
-            
+
             _logger = logger;
-            _universeServices = eveAPIServices.UniverseServices;
+            _eveMapperEntity = eveMapperEntity;
             _sdeServices = sdeServices;
             _anoikServices = anoikServices;
-            _noteService = noteService;
+            _noteServices = noteServices;
 
             InitMagnetarEffects();
             InitRedGiantEffects();
@@ -504,19 +495,18 @@ namespace WHMapper.Services.EveMapper
                 return new ReadOnlyCollection<WormholeType>(_whTypes);
             }
         }
-            
 
         private WHEffect GetWHEffectValueDescription(string description)
         {
             object? res = null;
             foreach (var field in typeof(WHEffect).GetFields())
             {
-                if (System.Attribute.GetCustomAttribute(field,typeof(DescriptionAttribute)) is DescriptionAttribute attribute)
+                if (System.Attribute.GetCustomAttribute(field, typeof(DescriptionAttribute)) is DescriptionAttribute attribute)
                 {
                     if (attribute.Description == description)
                     {
                         res = field.GetValue(null);
-                        if(res is WHEffect)
+                        if (res is WHEffect)
                             return (WHEffect)res;
                         else
                             return WHEffect.None;
@@ -528,7 +518,7 @@ namespace WHMapper.Services.EveMapper
                     if (field.Name == description)
                     {
                         res = field.GetValue(null);
-                        if(res is WHEffect)
+                        if (res is WHEffect)
                             return (WHEffect)res;
                         else
                             return WHEffect.None;
@@ -539,8 +529,7 @@ namespace WHMapper.Services.EveMapper
             throw new ArgumentException("Not found.", nameof(description));
         }
 
-
-        public bool IsWorhmole(string systemName)
+        public bool IsWormhole(string systemName)
         {
             try
             {
@@ -557,83 +546,91 @@ namespace WHMapper.Services.EveMapper
             }
         }
 
-        public async Task<EveSystemType> GetWHClass(ESISolarSystem whSystem)
+        public async Task<EveSystemType> GetWHClass(SystemEntity whSystem)
         {
-                
-            var system_constellation = await _universeServices!.GetContellation(whSystem.ConstellationId);     
-            var system_region = await _universeServices!.GetRegion(system_constellation!.RegionId);
-                
-            return await GetWHClass(system_region!.Name, system_constellation!.Name, whSystem.Name,whSystem.SecurityStatus);
+            var system_constellation = await _eveMapperEntity.GetConstellation(whSystem.ConstellationId);
+            if (system_constellation == null)
+                throw new InvalidDataException("Constellation not found");
+
+            var system_region = await _eveMapperEntity.GetRegion(system_constellation!.RegionId);
+            if (system_region == null)
+                throw new InvalidDataException("Region not found");
+
+            return await GetWHClass(system_region!.Name, system_constellation!.Name, whSystem.Name, whSystem.SecurityStatus);
         }
 
-        public Task<EveSystemType> GetWHClass(string regionName, string constellationName, string systemName, float SecurityStatus)
+    public Task<EveSystemType> GetWHClass(string regionName, string constellationName, string systemName, float securityStatus)
+    {
+        if (IsWormhole(systemName))
         {
-            if(IsWorhmole(systemName))
-            {
-                switch (regionName.First())
-                {
-                    case 'A':
-                        return Task.FromResult(EveSystemType.C1);
-                    case 'B':
-                        return Task.FromResult(EveSystemType.C2);
-                    case 'C':
-                        return Task.FromResult(EveSystemType.C3);
-                    case 'D':
-                        return Task.FromResult(EveSystemType.C4);
-                    case 'E':
-                        return Task.FromResult(EveSystemType.C5);
-                    case 'F':
-                        return Task.FromResult(EveSystemType.C6);
-                    case 'G':
-                        return Task.FromResult(EveSystemType.Thera);
-                    case 'H':
-                        return Task.FromResult(EveSystemType.C13);
-                    case 'K':
-                        if (systemName == C14_NAME)
-                            return Task.FromResult(EveSystemType.C14);
-                        else if (systemName == C15_NAME)
-                            return Task.FromResult(EveSystemType.C15);
-                        else if (systemName == C16_NAME)
-                            return Task.FromResult(EveSystemType.C16);
-                        else if (systemName == C17_NAME)
-                            return Task.FromResult(EveSystemType.C17);
-                        else if (systemName == C18_NAME)
-                            return Task.FromResult(EveSystemType.C18);
-                        else
-                            return Task.FromResult(EveSystemType.None);
-                    default:
-                        return Task.FromResult(EveSystemType.None);
-                }
-            }
-            else if (regionName == REGION_POCHVVEN_NAME)//trig system
-                return Task.FromResult(EveSystemType.Pochven);
-            else
-            {
-                if (SecurityStatus >= 0.5)
-                    return Task.FromResult(EveSystemType.HS);
-                else if (SecurityStatus < 0.5 && SecurityStatus > 0)
-                    return Task.FromResult(EveSystemType.LS);
-                else
-                    return Task.FromResult(EveSystemType.NS);
-            }
+            return Task.FromResult(GetWormholeSystemType(regionName, systemName));
         }
+        else if (regionName == REGION_POCHVVEN_NAME) // Trig system
+        {
+            return Task.FromResult(EveSystemType.Pochven);
+        }
+        else
+        {
+            return Task.FromResult(GetKSpaceSystemType(securityStatus));
+        }
+    }
+
+    private EveSystemType GetWormholeSystemType(string regionName, string systemName)
+    {
+        var firstChar = regionName.FirstOrDefault();
+        return firstChar switch
+        {
+            'A' => EveSystemType.C1,
+            'B' => EveSystemType.C2,
+            'C' => EveSystemType.C3,
+            'D' => EveSystemType.C4,
+            'E' => EveSystemType.C5,
+            'F' => EveSystemType.C6,
+            'G' => EveSystemType.Thera,
+            'H' => EveSystemType.C13,
+            'K' => GetSpecialWormholeSystemType(systemName),
+            _ => EveSystemType.None,
+        };
+    }
+
+    private EveSystemType GetSpecialWormholeSystemType(string systemName)
+    {
+        return systemName switch
+        {
+            C14_NAME => EveSystemType.C14,
+            C15_NAME => EveSystemType.C15,
+            C16_NAME => EveSystemType.C16,
+            C17_NAME => EveSystemType.C17,
+            C18_NAME => EveSystemType.C18,
+            _ => EveSystemType.None,
+        };
+    }
+
+    private EveSystemType GetKSpaceSystemType(float securityStatus)
+    {
+        if (securityStatus >= 0.5)
+            return EveSystemType.HS;
+        else if (securityStatus < 0.5 && securityStatus > 0)
+            return EveSystemType.LS;
+        else
+            return EveSystemType.NS;
+    }
 
         private async Task<WHEffect> GetSystemEffect(string systemName)
         {
             WHEffect effect = WHEffect.None;
-            if (IsWorhmole(systemName))//WH system
+            if (IsWormhole(systemName))//WH system
             {
                 IEnumerable<SDESolarSystem>? sdeWormholesInfos = await _sdeServices!.SearchSystem(systemName);
                 SDESolarSystem? sdeInfos = sdeWormholesInfos?.FirstOrDefault();
 
-                if (sdeInfos!=null && sdeInfos.SecondarySun != null)
+                if (sdeInfos != null && sdeInfos.SecondarySun != null)
                 {
-                    var secondSunType = await _universeServices!.GetType(sdeInfos.SecondarySun.TypeID);
-                    if(secondSunType!=null)
-                        effect = GetWHEffectValueDescription(secondSunType.Name);
+                    SunEntity? secondSun = await _eveMapperEntity.GetSun(sdeInfos.SecondarySun.TypeID);
+                    if (secondSun != null)
+                        effect = GetWHEffectValueDescription(secondSun.Name);
                     else
                         effect = WHEffect.None;
-                
                 }
             }
             return effect;
@@ -664,14 +661,24 @@ namespace WHMapper.Services.EveMapper
         public async Task<EveSystemNodeModel> DefineEveSystemNodeModel(WHSystem wh)
         {
             EveSystemNodeModel res = null!;
-            var system = await _universeServices!.GetSystem(wh.SoloarSystemId);
-            var system_constellation = await _universeServices!.GetContellation(system!.ConstellationId);           
-            var system_region = await _universeServices.GetRegion(system_constellation!.RegionId);
-            var note = await _noteService!.GetBySolarSystemId(system.SystemId);
 
-            if (IsWorhmole(wh.Name))//WH system
+            var system = await _eveMapperEntity.GetSystem(wh.SoloarSystemId);
+            if (system == null)
+                throw new InvalidDataException("System not found");
+
+            var system_constellation = await _eveMapperEntity.GetConstellation(system.ConstellationId);
+            if (system_constellation == null)
+                throw new InvalidDataException("Constellation not found");
+
+            var system_region = await _eveMapperEntity.GetRegion(system_constellation.RegionId);
+            if (system_region == null)
+                throw new InvalidDataException("Region not found");
+
+            var note = await _noteServices.GetBySolarSystemId(system.Id);
+
+            if (IsWormhole(wh.Name))//WH system
             {
-                EveSystemType whClass = await GetWHClass(system_region!.Name, system_constellation.Name, system.Name,system.SecurityStatus);
+                EveSystemType whClass = await GetWHClass(system_region!.Name, system_constellation.Name, system.Name, system.SecurityStatus);
                 WHEffect whEffect = await GetSystemEffect(system.Name);
                 IList<EveSystemEffect>? effectDetails = GetWHEffectDetails(whEffect, whClass);
                 IList<WHStatic>? statics = null;
@@ -686,7 +693,7 @@ namespace WHMapper.Services.EveMapper
             }
             else if (system_region!.Name == REGION_POCHVVEN_NAME)//trig system
             {
-                res = new EveSystemNodeModel(wh, note, system_region.Name, system_constellation.Name, EveSystemType.Pochven, WHEffect.None,null,null);
+                res = new EveSystemNodeModel(wh, note, system_region.Name, system_constellation.Name, EveSystemType.Pochven, WHEffect.None, null, null);
             }
             else// K-space
             {
@@ -697,122 +704,102 @@ namespace WHMapper.Services.EveMapper
             return res;
         }
 
-        public async Task InitWormholeTypeList()
+        private async Task InitWormholeTypeList()
         {
-            if(_universeServices==null)
-                throw new ArgumentNullException(nameof(_universeServices));
-
-
-            _logger?.LogInformation("Init wormhole type list");
-            if (_universeServices != null)
+            _logger?.LogInformation("Init wormhole type list");           
+            GroupEntity? whGroup = await _eveMapperEntity.GetGroup(GROUPE_WORMHOLE_ID);
+            if(whGroup==null)
+                throw new InvalidDataException("Wormhole group not found");
+            
+            await Parallel.ForEachAsync(whGroup!.Types, _options, async (whTypeId, token) =>
             {
-                Models.DTO.EveAPI.Universe.Group? whGroup = await _universeServices.GetGroup(GROUPE_WORMHOLE_ID);
-                await Parallel.ForEachAsync(whGroup!.Types, _options, async (whTypeId, token) =>
+                var whType = await _eveMapperEntity.GetWormhole(whTypeId);
+                if (whType != null)
                 {
-                    var whType = await _universeServices.GetType(whTypeId);
-                    if (whType != null)
+                    if (_whTypes?.Where(x => x.Name == whType.Name).Count() == 0)
                     {
-                        float systemTypeValue = 0;
-                        if (whType.DogmaAttributes != null)
-                            systemTypeValue = whType.DogmaAttributes.Where(x => x.AttributeId == DOGMA_ATTR_TARGET_SYSTEM_CLASS_FOR_WORMHOLES_ID).Select(x => x.Value).FirstOrDefault(-1);
-                        else
-                            systemTypeValue = 0;
-
-                        if (_whTypes.Where(x => x.Name == whType.Name[9..]).Count() == 0)
+                        switch (whType.SystemTypeValue)
                         {
+                            case 0://K162
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C1, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C2, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C3, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C4, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C5, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.C6, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.HS, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.LS, null));
+                                _whTypes.Add(new WormholeType("K162", EveSystemType.NS, null));
+                                break;
+                            case 10:
+                            case 11:
+                                //QA WH A abd QA WH B, unused WH
+                                break;
+                            default:
 
-                            switch (systemTypeValue)
-                            {
-                                case 0://K162
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C1, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C2, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C3, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C4, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C5, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.C6, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.HS, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.LS, null));
-                                    _whTypes.Add(new WormholeType("K162", EveSystemType.NS, null));
-                                    //_whTypes.Add(new WormholeType("K162", EveSystemType.Home, null));
-                                    break;
-                                case 1:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C1, null));
-                                    break;
-                                case 2:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C2, null));
-                                    break;
-                                case 3:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C3, null));
-                                    //_whTypes.Add(new WormholeType(whType.Name[8..], EveSystemType.Home, null));
-                                    break;
-                                case 4:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C4, null));
-                                    break;
-                                case 5:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C5, null));
-                                    break;
-                                case 6:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C6, null));
-                                    break;
-                                case 7:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.HS, null));
-                                    break;
-                                case 8:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.LS, null));
-                                    break;
-                                case 9:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.NS, null));
-                                    break;
-
-                                case 10:
-                                case 11:
-                                    //QA WH A abd QA WH B, unused WH
-                                    break;
-
-                                case 12:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.Thera, null));
-                                    break;
-                                case 13:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C13, null));
-                                    break;
-                                case 14:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C14, null));
-                                    break;
-                                case 15:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C15, null));
-                                    break;
-                                case 16:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C16, null));
-                                    break;
-                                case 17:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C17, null));
-                                    break;
-                                case 18:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.C18, null));
-                                    break;
-                                case 25:
-                                    _whTypes.Add(new WormholeType(whType.Name[9..].Trim(), EveSystemType.Pochven, null));
-                                    break;
-
-                                default:
-                                    _logger?.LogWarning("Unknow wormhole type");
-                                    break;
-                            }
+                                int sys_type_value=(int)whType.SystemTypeValue;
+                                if (Enum.IsDefined(typeof(EveSystemType), sys_type_value))
+                                {
+                                    _whTypes.Add(new WormholeType(whType.Name, (EveSystemType)whType.SystemTypeValue, null));
+                                }
+                                else
+                                {
+                                    _logger?.LogWarning("Unknown wormhole type");
+                                }
+                                break;
                         }
-                        else
-                        {
-                            _logger?.LogInformation("Always added");
-                        }
-
                     }
                     else
                     {
-                        _logger?.LogWarning(string.Format("Nullable wormhole type, value : {0}", whTypeId));
+                        _logger?.LogInformation("Always added");
                     }
-                });
-                _whTypes = _whTypes.OrderBy(x => x.Name).ToList<WormholeType> ();
-            }
+
+                }
+                else
+                {
+                    _logger?.LogWarning("Nullable wormhole type, value : {whTypeId}", whTypeId);
+                }
+            });
+            _whTypes = _whTypes.OrderBy(x => x.Name).ToList<WormholeType>();
+
         }
 
+        public async Task<bool> IsRouteViaWH(SystemEntity src, SystemEntity dst)
+        {
+            if (src == null)
+                throw new ArgumentNullException(nameof(src));
+
+            if (dst == null)
+                throw new ArgumentNullException(nameof(dst));
+
+            if (src.Stargates == null || dst.Stargates == null)
+                return true;
+
+            if (src.Stargates.Length == 0 || dst.Stargates.Length == 0)
+                return true;
+
+            int[]? startgatesToCheck = null;
+            int systemTarget = -1;
+
+            if (src.Stargates.Length <= dst.Stargates.Length)
+            {
+                startgatesToCheck = dst.Stargates;
+                systemTarget = src.Id;
+            }
+            else
+            {
+                startgatesToCheck = src.Stargates;
+                systemTarget = dst.Id;
+            }
+
+            foreach (int sgId in startgatesToCheck)
+            {
+                var sg = await _eveMapperEntity.GetStargate(sgId);
+                if (sg != null && sg.DestinationId == systemTarget)
+                    return false;
+            }
+
+            return true;
+        }
     }
 }

@@ -1,10 +1,11 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 using WHMapper.Models.DTO.EveAPI.Route.Enums;
-using WHMapper.Services.EveAPI.Alliance;
-using WHMapper.Services.EveAPI.Character;
-using WHMapper.Services.EveAPI.Corporation;
+using WHMapper.Services.EveAPI.Alliances;
+using WHMapper.Services.EveAPI.Characters;
+using WHMapper.Services.EveAPI.Corporations;
 using WHMapper.Services.EveAPI.Dogma;
+using WHMapper.Services.EveAPI.Routes;
 using WHMapper.Services.EveAPI.Universe;
 using Xunit.Priority;
 
@@ -128,7 +129,7 @@ public class PublicEveOnlineAPITest
         Assert.Equal(SOLAR_SYSTEM_JITA_NAME, jita.Name);
         Assert.NotNull(jita.Stargates);
 
-        var jita_constellation = await _eveUniverseApi.GetContellation(jita.ConstellationId);
+        var jita_constellation = await _eveUniverseApi.GetConstellation(jita.ConstellationId);
         Assert.NotNull(jita_constellation);
         Assert.Equal(CONSTELLATION_NAME, jita_constellation.Name);
 

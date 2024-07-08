@@ -1,11 +1,9 @@
-﻿using System.Threading.Tasks;
-using WHMapper.Models.DTO.EveAPI.Universe;
+﻿using WHMapper.Models.DTO.EveAPI.Universe;
 
 namespace WHMapper.Services.EveAPI.Universe
 {
     public interface IUniverseServices
     {
-
         Task<int[]?> GetSystems();
         Task<ESISolarSystem?> GetSystem(int system_id);
         Task<Star?> GetStar(int star_id);
@@ -17,7 +15,7 @@ namespace WHMapper.Services.EveAPI.Universe
         Task<int[]?> GetTypes();
         Task<Stargate?> GetStargate(int stargate_id);
         Task<int[]?> GetContellations();
-        Task<Constellation?> GetContellation(int constellatio_id);
+        Task<Constellation?> GetConstellation(int constellatio_id);
         Task<int[]?> GetRegions();
         Task<Region?> GetRegion(int region_id);
     }

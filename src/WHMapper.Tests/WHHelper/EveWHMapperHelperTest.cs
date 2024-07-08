@@ -1,5 +1,4 @@
-using System;
-using System.Threading;
+using System.IO.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -9,18 +8,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 using WHMapper.Data;
 using WHMapper.Models.Db;
 using WHMapper.Models.DTO;
-using WHMapper.Models.DTO.EveAPI;
-using WHMapper.Models.DTO.EveAPI.Universe;
 using WHMapper.Models.DTO.EveMapper.Enums;
+using WHMapper.Models.DTO.EveMapper.EveEntity;
 using WHMapper.Repositories.WHNotes;
 using WHMapper.Services.Anoik;
 using WHMapper.Services.Cache;
 using WHMapper.Services.EveAPI;
-using WHMapper.Services.EveAPI.Universe;
 using WHMapper.Services.EveMapper;
 using WHMapper.Services.EveOnlineUserInfosProvider;
 using WHMapper.Services.SDE;
-using WHMapper.Services.WHColor;
 using Xunit.Priority;
 
 namespace WHMapper.Tests.WHHelper;
@@ -35,6 +31,7 @@ public class EveWHMapperHelperTest
     private const string SOLAR_SYSTEM_JITA_NAME = "Jita";
     private const char SOLAR_SYSTEM_EXTENSION_NAME = 'B';
     private const string CONSTELLATION_JITA_NAME = "Kimotoro";
+    private const int CONSTALLATION_JITA_ID = 20000020;
     private const string REGION_JITA_NAME = "The Forge";
 
     private const string SOLAR_SYSTEM_AMAMAKE_NAME = "Amamake";
@@ -99,12 +96,12 @@ public class EveWHMapperHelperTest
             .AddEnvironmentVariables()
             .Build();
 
-
         var services = new ServiceCollection();
         services.AddHttpClient();
 
         services.AddDbContextFactory<WHMapperContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DatabaseConnection")));
+            options.UseNpgsql(configuration.GetConnectionString("DatabaseConnection"))
+            );
 
         services.AddStackExchangeRedisCache(option =>
             {
@@ -112,38 +109,55 @@ public class EveWHMapperHelperTest
                 option.InstanceName = "WHMapper";
             });
 
-        
-
         var provider = services.BuildServiceProvider();
         var httpclientfactory = provider.GetService<IHttpClientFactory>();
 
         IDbContextFactory<WHMapperContext>? _contextFactory = provider.GetService<IDbContextFactory<WHMapperContext>>();
         IDistributedCache? _distriCache = provider.GetService<IDistributedCache>();
 
-        ILogger<SDEServices> loggerSDE = new NullLogger<SDEServices>();
+        ILogger<SDEService> loggerSDE = new NullLogger<SDEService>();
         ILogger<AnoikServices> loggerAnoik = new NullLogger<AnoikServices>();
         ILogger<EveMapperHelper> loggerMapperHelper = new NullLogger<EveMapperHelper>();
         ILogger<EveAPIServices> loggerAPI = new NullLogger<EveAPIServices>();
         ILogger<WHNoteRepository> loggerWHNoteRepository = new NullLogger<WHNoteRepository>();
         ILogger<CacheService> loggerCacheService = new NullLogger<CacheService>();
+        ILogger<EveMapperEntity> loggerEveMapperEntity = new NullLogger<EveMapperEntity>();
+        ILogger<SdeDataSupplier> loggerSdeDataSupplier = new NullLogger<SdeDataSupplier>();
 
-        if(httpclientfactory!=null && _contextFactory != null && _distriCache != null)
+        if (httpclientfactory != null && _contextFactory != null && _distriCache != null)
         {
-            _whEveMapper = new EveMapperHelper(loggerMapperHelper
-                , new EveAPIServices(loggerAPI, httpclientfactory, new TokenProvider(), null!)
-                , new SDEServices(loggerSDE,new CacheService(loggerCacheService, _distriCache)),
-                new AnoikServices(loggerAnoik), new WHNoteRepository(loggerWHNoteRepository, _contextFactory));
+            ICacheService cacheService = new CacheService(loggerCacheService, _distriCache);
+
+            var userInfoService = new EveUserInfosServices(null!);
+            var apiServices = new EveAPIServices(loggerAPI, httpclientfactory, new TokenProvider(), userInfoService);
+            var mapperEntity = new EveMapperEntity(loggerEveMapperEntity, cacheService, apiServices);
+
+            IFileSystem fileSystem = new FileSystem();
+            HttpClient httpClient = new HttpClient() { BaseAddress = new Uri(configuration.GetValue<string>("SdeDataSupplier:BaseUrl")) };
+            ISDEDataSupplier dataSupplier = new SdeDataSupplier(loggerSdeDataSupplier, httpClient);
+
+            ISDEService sDEServices = new SDEService(loggerSDE, cacheService);
+            IAnoikServices anoikServices = new AnoikServices(loggerAnoik, new AnoikJsonDataSupplier(@"./Resources/Anoik/static.json"));
+            IWHNoteRepository wHNoteRepository = new WHNoteRepository(loggerWHNoteRepository, _contextFactory);
+
+            _whEveMapper = new EveMapperHelper(loggerMapperHelper, mapperEntity, sDEServices, anoikServices, wHNoteRepository);
         }
     }
 
     [Fact, Priority(1)]
     public Task Is_Wormhole()
     {
-        bool not_wh_result = _whEveMapper.IsWorhmole(SOLAR_SYSTEM_JITA_NAME);
+        bool not_wh_result = _whEveMapper.IsWormhole(SOLAR_SYSTEM_JITA_NAME);
         Assert.False(not_wh_result);
 
-        bool is_wh_result = _whEveMapper.IsWorhmole(SOLAR_SYSTEM_WH_NAME);
+        bool is_wh_result = _whEveMapper.IsWormhole(SOLAR_SYSTEM_WH_NAME);
         Assert.True(is_wh_result);
+
+        bool bad_result = _whEveMapper.IsWormhole("BAD_NAME");
+        Assert.False(bad_result);
+
+        bool bad_empty_result = _whEveMapper.IsWormhole(string.Empty);
+        Assert.False(bad_empty_result);
 
         return Task.CompletedTask;
     }
@@ -152,7 +166,7 @@ public class EveWHMapperHelperTest
     [Fact, Priority(2)]
     public async Task Get_Wormhole_Class()
     {
-        var result_C3_Bis= await _whEveMapper.GetWHClass(new ESISolarSystem(0, 31001123, SOLAR_SYSTEM_WH_NAME,null!,-1.0f,string.Empty,CONSTELLATION_WH_ID,null!,null!));
+        var result_C3_Bis= await _whEveMapper.GetWHClass(new SystemEntity(31001123, SOLAR_SYSTEM_WH_NAME,CONSTELLATION_WH_ID,-1.0f, new int[]{}));
         Assert.Equal(EveSystemType.C3, result_C3_Bis);
 
         var result_HS = await _whEveMapper.GetWHClass(REGION_JITA_NAME, "UNUSED", SOLAR_SYSTEM_JITA_NAME,1.0f);
@@ -226,6 +240,22 @@ public class EveWHMapperHelperTest
     {
         var result = await _whEveMapper.DefineEveSystemNodeModel(new WHSystem(DEFAULT_MAP_ID, 31001531, C4_NAME_BUG_207, -1.0f));
         Assert.Equal(EveSystemType.C4, result.SystemType);
+    }
+
+    [Fact, Priority(5)]
+    public async Task Is_Route_Via_WH()
+    {
+        var src = new SystemEntity(SOLAR_SYSTEM_WH_ID, SOLAR_SYSTEM_WH_NAME, CONSTELLATION_WH_ID, -1.0f, new int[] { });//fake for test
+        var dst = new SystemEntity(SOLAR_SYSTEM_JITA_ID,SOLAR_SYSTEM_JITA_NAME, CONSTALLATION_JITA_ID, -1.0f, new int[] {50001248 });//fake for test
+
+        var result = await _whEveMapper.IsRouteViaWH(src, dst);
+        Assert.True(result);
+
+        var src2 = new SystemEntity(SOLAR_SYSTEM_JITA_ID, SOLAR_SYSTEM_JITA_NAME, CONSTALLATION_JITA_ID, -1.0f, new int[] { 50001248});
+        var dst2 = new SystemEntity(30000140, "Maurasi", CONSTALLATION_JITA_ID, -1.0f, new int[] { 50000802});
+
+        var result_wh = await _whEveMapper.IsRouteViaWH(src2, dst2);
+        Assert.False(result_wh);
     }
 }
 

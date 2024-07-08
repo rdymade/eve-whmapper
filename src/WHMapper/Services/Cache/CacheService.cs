@@ -1,5 +1,5 @@
-﻿using System.Text.Json;
-using Microsoft.Extensions.Caching.Distributed;
+﻿using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace WHMapper.Services.Cache;
 
@@ -30,7 +30,7 @@ public class CacheService : ICacheService
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error getting cache key {key}");
-            return default(T);
+            return default;
         }
     }
 
@@ -57,6 +57,11 @@ public class CacheService : ICacheService
 
     public async Task<bool> Remove(string key)
     {
+        if (string.IsNullOrEmpty(key))
+        {
+            _logger.LogError("Error removing cache key: key is null or empty");
+            return false;
+        }
         try
         {
             _logger.LogInformation($"Removing cache key {key}");
@@ -69,6 +74,4 @@ public class CacheService : ICacheService
             return false;
         }
     }
-
-
 }
