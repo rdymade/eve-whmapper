@@ -73,6 +73,14 @@ namespace WHMapper.Services.SDE
                 var fileContent = _fileSystem.File.ReadLines(SDE_CHECKSUM_FILE);
                 return string.Join(";", fileContent);
             }
+            catch (FileNotFoundException)
+            {
+                _logger.LogInformation("No checksum file found");
+            }
+            catch(DirectoryNotFoundException)
+            {
+                _logger.LogInformation("No checksum file found");
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex.ToString());
