@@ -148,7 +148,7 @@ namespace WHMapper.Pages.Mapper.RoutePlanner
         {
             DialogOptions disableBackdropClick = new DialogOptions()
             {
-                DisableBackdropClick = true,
+                BackdropClick=false,
                 Position = DialogPosition.Center,
                 MaxWidth = MaxWidth.Medium,
                 FullWidth = true
@@ -156,9 +156,9 @@ namespace WHMapper.Pages.Mapper.RoutePlanner
             var parameters = new DialogParameters();
 
             var dialog = await DialogService.ShowAsync<Add>("Add Route", parameters, disableBackdropClick);
-            DialogResult result = await dialog.Result;
+            DialogResult? result = await dialog.Result;
 
-            if (!result.Canceled)
+            if (result != null && !result.Canceled)
             {
                 await Restore();
             }
@@ -170,9 +170,9 @@ namespace WHMapper.Pages.Mapper.RoutePlanner
             var parameters = new DialogParameters();
             parameters.Add("RouteId", route.Id);
             var dialog = await DialogService.ShowAsync<Delete>("Delete Route", parameters);
-            DialogResult result = await dialog.Result;
+            DialogResult? result = await dialog.Result;
             
-            if (!result.Canceled)
+            if (result != null && !result.Canceled)
             {
                 await ShowRoute(route,false);
                 await Restore();
