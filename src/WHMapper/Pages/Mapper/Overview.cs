@@ -659,7 +659,7 @@ namespace WHMapper.Pages.Mapper
                     _blazorDiagram.RegisterBehavior(new CustomDragMovablesBehavior(_blazorDiagram));
 
                     _blazorDiagram.Options.Zoom.Enabled = true;
-                    _blazorDiagram.Options.Zoom.Inverse = false;
+                    _blazorDiagram.Options.Zoom.Inverse = true;
                     _blazorDiagram.Options.Links.EnableSnapping = false;
                     _blazorDiagram.Options.AllowMultiSelection = true;
                     _blazorDiagram.RegisterComponent<EveSystemNodeModel, EveSystemNode>();

@@ -58,7 +58,14 @@ namespace WHMapper.Models.Custom.Node
             }
         }
 
-        
+        public String SystemShortDesc
+        {
+            get
+            {
+                return "";
+            }
+        }
+
         public int SolarSystemId
         {
             get
