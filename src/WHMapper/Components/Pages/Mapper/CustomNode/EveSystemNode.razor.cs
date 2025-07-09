@@ -13,7 +13,9 @@ public partial class EveSystemNode
     private string _whEffectColor = IWHColorHelper.DEFAULT_COLOR;
 
     private bool _isEditingName = false;
+    private bool _isEditingTag = false;
     private string? _editedName;
+    private string? _editedTag;
 
     [Inject]
     ILogger<EveSystemNode> Logger { get; set; } = null!;
@@ -97,6 +99,20 @@ public partial class EveSystemNode
         
     }
 
+    private void StartEditingTag()
+    {
+        _isEditingTag = true;
+        if (Node.SystemTag != null)
+        {
+            _editedTag = Node.SystemTag;
+        }
+        else
+        {
+            _editedTag = "";
+        }
+
+    }
+
     private async Task SaveName()
     {
         if (string.IsNullOrWhiteSpace(_editedName) || (_editedName == Node.Name))
@@ -111,12 +127,31 @@ public partial class EveSystemNode
         _isEditingName = false;
         await InvokeAsync(StateHasChanged);
     }
+
+    private async Task SaveTag()
+    {
+        if (string.IsNullOrWhiteSpace(_editedTag) || (_editedTag == Node.SystemTag))
+        {
+            Node.SetSystemTag(null);
+        }
+        else if (_editedTag != Node.SystemTag)
+        {
+            Node.SetSystemTag(_editedTag);
+        }
+
+        _isEditingTag = false;
+        await InvokeAsync(StateHasChanged);
+    }
     
         private async Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await SaveName();
+            if(_isEditingName)
+                await SaveName();
+            
+            if (_isEditingTag)
+                await SaveTag();
         }
         else if (e.Key == "Escape")
         {

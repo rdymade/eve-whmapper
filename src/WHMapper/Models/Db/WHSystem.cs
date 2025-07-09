@@ -23,6 +23,9 @@ namespace WHMapper.Models.Db
 
         public byte NameExtension { get; set; }
 
+        [StringLength(255, ErrorMessage = "System Tag is too long.")]
+        public String? SystemTag { get; set; }
+
         [Required]
         public float SecurityStatus { get; set; }
 

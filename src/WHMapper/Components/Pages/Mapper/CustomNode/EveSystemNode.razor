@@ -6,9 +6,25 @@
 <MudCard Outlined="true" Style="@systemStyle" Class="_class">
     <MudCardHeader Class="mb-n2 pa-1 mx-1">
         <CardHeaderAvatar>
-            <MudBadge Origin="Origin.TopRight" Overlap="false" Content=@Node.NameExtension Visible=@((Node.NameExtension!=null) ? true : false) Bordered="true" Color="Color.Dark">
-                <MudText Typo="Typo.body1" Style="@($"color:{_systemColor}; border-color:{_systemColor}; font-weight:bold;")" Size="Size.Small" Variant="Variant.Outlined">@Node.SystemType.ToDescriptionString()</MudText>
-            </MudBadge>
+        <div Class="d-flex flex-row justify-space-between">
+            @if (_isEditingTag)
+            {
+                <MudTextField @bind-Value="_editedTag"
+                      Immediate="true"
+                      @onblur="@(() => SaveTag())"
+                      @onkeyup="@((e) => OnKeyUp(e))"
+                      Class="d-flex align-self-center mr-1 justify-start"
+                      Style="@($"color:{_systemColor}; font-weight:normal; width: 60px;")"
+                      Variant="Variant.Text"
+                      Margin="Margin.Dense"
+                      AutoFocus="true" />
+            }
+            else
+            {   
+                <MudText class="d-flex align-self-center mr-1 justify-start" Typo="Typo.body1" Style="@($"color:{_systemColor}; font-weight:normal;")" @ondblclick="StartEditingTag">@Node.SystemTag</MudText>
+            }
+            <MudText Class="d-flex align-self-center justify-end" Typo="Typo.body1" Style="@($"color:{_systemColor}; font-weight:bold;")" Size="Size.Small" Variant="Variant.Outlined" @ondblclick="StartEditingTag">@Node.SystemType.ToDescriptionString()</MudText>
+        </div>
         </CardHeaderAvatar>
         <CardHeaderContent>
             @if (_isEditingName)
@@ -19,7 +35,7 @@
                       @onkeyup="@((e) => OnKeyUp(e))"
                       Class="ml-n3 mr-2"
                       Style="font-weight:bold; width: 120px;"
-                      Variant="Variant.Outlined"
+                      Variant="Variant.Text"
                       Margin="Margin.Dense"
                       AutoFocus="true" />
             }

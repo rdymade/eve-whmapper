@@ -11,10 +11,12 @@ namespace WHMapper.Models.Custom.Node
     {
         private const string NameExtensionErrorMessage = "Name extension must be between A and Z";
         private const string AlternateNameErrorMessage = "Alternate name is too long. Maximum length is 255 characters.";
+        private const string SystemTagErrorMessage = "System Tag is too long. Maximum length is 255 characters.";
 
         public event Action<EveSystemNodeModel>? OnLocked;
         public event Action<EveSystemNodeModel>? OnSystemStatusChanged;
         public event Action<EveSystemNodeModel>? OnAlternateNameChanged;
+        public event Action<EveSystemNodeModel>? OnSystemTagChanged;
 
         private readonly WHSystem _wh;
         
@@ -54,6 +56,16 @@ namespace WHMapper.Models.Custom.Node
             {
                 if (_wh.AlternateName != null && _wh.AlternateName.Length > 0)
                     return _wh.AlternateName;
+                return null;
+            }
+        }
+
+        public String? SystemTag
+        {
+            get
+            {
+                if (_wh != null && !string.IsNullOrEmpty(_wh.SystemTag))
+                    return _wh.SystemTag;
                 return null;
             }
         }
@@ -243,6 +255,13 @@ namespace WHMapper.Models.Custom.Node
                 throw new ArgumentOutOfRangeException(nameof(alternateName), AlternateNameErrorMessage);
             _wh.AlternateName = alternateName;
             OnAlternateNameChanged?.Invoke(this);
+        }
+        public void SetSystemTag(string? systemTag)
+        {
+            if (systemTag != null && systemTag.Length > 255)
+                throw new ArgumentOutOfRangeException(nameof(systemTag), SystemTagErrorMessage);
+            _wh.SystemTag = systemTag;
+            OnSystemTagChanged?.Invoke(this);
         }
 
         public async Task AddConnectedUser(string userName)

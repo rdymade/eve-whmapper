@@ -186,6 +186,15 @@ public class WHMapperNotificationHub : Hub<IWHMapperNotificationHub>
             await Clients.AllExcept(Context.ConnectionId).NotifyWormholeAlternateNameChanged(accountID, mapId, wormholeId, alternateName);
         }
     }
+    
+    public async Task SendWormholeSystemTagChanged(int mapId, int wormholeId, string? systemTag)
+    {
+        int accountID = CurrentAccountId();
+        if(accountID != 0)
+        {
+            await Clients.AllExcept(Context.ConnectionId).NotifyWormholeSystemTagChanged(accountID, mapId, wormholeId, systemTag);
+        }
+    }
 
     public Task<IDictionary<int, KeyValuePair<int, int>?>> GetConnectedUsersPosition()
     {
