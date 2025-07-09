@@ -28,6 +28,7 @@ public class EveMapperRealTimeService : IEveMapperRealTimeService
     public event Func<int, int, int, bool, SystemLinkSize, SystemLinkMassStatus, Task>? LinkChanged;
     public event Func<int, int, int, char?, Task>? WormholeNameExtensionChanged;
     public event Func<int, int, int,string?, Task>? WormholeAlternateNameChanged;
+    public event Func<int, int, int,string?, Task>? WormholeSystemTagChanged;
     public event Func<int, int, int, Task>? WormholeSignaturesChanged;
     public event Func<int, int, int, bool, Task>? WormholeLockChanged;
     public event Func<int, int, int, WHSystemStatus, Task>? WormholeSystemStatusChanged;
@@ -165,6 +166,13 @@ public class EveMapperRealTimeService : IEveMapperRealTimeService
                     if (WormholeAlternateNameChanged != null)
                     {
                         await WormholeAlternateNameChanged.Invoke(accountID, mapId, wormholeId,alternateName);
+                    }
+                });
+                hubConnection.On<int, int, int,string?>("NotifyWormholeSystemTagChanged", async (accountID, mapId,wormholeId, systemTag) => 
+                {
+                    if (WormholeSystemTagChanged != null)
+                    {
+                        await WormholeSystemTagChanged.Invoke(accountID, mapId, wormholeId,systemTag);
                     }
                 });
                 hubConnection.On<int, int>("NotifyMapAdded", async (accountID, mapId) => 
@@ -393,6 +401,15 @@ public class EveMapperRealTimeService : IEveMapperRealTimeService
         if (hubConnection is not null)
         {
             await hubConnection.SendAsync("SendWormholeAlternateNameChanged", mapId, wormholeId, alternateName);
+        }
+    }
+
+    public async Task NotifySystemTagChanged(int accountID, int mapId, int wormholeId, string? systemTag)
+    {
+        HubConnection? hubConnection = await GetHubConnection(accountID);
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("SendWormholeSystemTagChanged", mapId, wormholeId, systemTag);
         }
     }
 
