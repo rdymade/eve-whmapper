@@ -20,6 +20,8 @@ namespace WHMapper.Models.Custom.Node
         
         private WHSystemStatus _systemStatus;
 
+        private string _shortDesc;
+
         public int IdWH
         {
             get
@@ -66,6 +68,13 @@ namespace WHMapper.Models.Custom.Node
             }
         }
 
+        public String SystemShortDesc
+        {
+            get
+            {
+                return _shortDesc;
+            }
+        }
         
         public int SolarSystemId
         {
@@ -131,10 +140,17 @@ namespace WHMapper.Models.Custom.Node
         public EveSystemNodeModel(WHSystem wh, WHNote? note, string regionName, string constellationName, EveSystemType systemType, WHEffect whEffect, IList<EveSystemEffect>? effectDetails, IList<WormholeType>? whStatics) 
         {
             this._wh = wh;
-            if(note != null)
+            if(note != null) {
                 _systemStatus = note.SystemStatus;
-            else
+                string fullDesc = note.Comment;
+                using (var reader = new StringReader(fullDesc))
+                {
+                    _shortDesc = reader.ReadLine();
+                }
+            } else {
                 _systemStatus=WHSystemStatus.Unknown;
+                _shortDesc = "";
+            }
             
             RegionName = regionName;
             ConstellationName = constellationName;
@@ -155,10 +171,17 @@ namespace WHMapper.Models.Custom.Node
         public EveSystemNodeModel(WHSystem wh, WHNote? note, string regionName, string constellationName)
         {
             this._wh = wh;
-            if(note != null)
+            if(note != null) {
                 _systemStatus = note.SystemStatus;
-            else
+                string fullDesc = note.Comment;
+                using (var reader = new StringReader(fullDesc))
+                {
+                    _shortDesc = reader.ReadLine();
+                }
+            } else {
                 _systemStatus=WHSystemStatus.Unknown;
+                _shortDesc = "";
+            }
 
 
             RegionName = regionName;
