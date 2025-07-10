@@ -102,13 +102,13 @@ public partial class EveSystemNode
     private void StartEditingTag()
     {
         _isEditingTag = true;
-        if (Node.SystemTag != null)
+        if (string.IsNullOrEmpty(Node.SystemTag))
         {
-            _editedTag = Node.SystemTag;
+            _editedTag = "";
         }
         else
         {
-            _editedTag = "";
+            _editedTag = Node.SystemTag;
         }
 
     }
@@ -130,7 +130,7 @@ public partial class EveSystemNode
 
     private async Task SaveTag()
     {
-        if (string.IsNullOrWhiteSpace(_editedTag) || (_editedTag == Node.SystemTag))
+        if (string.IsNullOrWhiteSpace(_editedTag))
         {
             Node.SetSystemTag(null);
         }
