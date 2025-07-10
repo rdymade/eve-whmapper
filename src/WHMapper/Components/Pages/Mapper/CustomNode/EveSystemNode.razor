@@ -81,20 +81,9 @@
 
     <MudCardContent Class="d-flex pa-1 mx-1 flex-column justify-space-between">
         <div Class="d-flex flex-row justify-space-between">
-            <MudText Class="d-flex align-self-center justify-start" Typo="Typo.caption">@Node.SystemShortDesc.ToString()</MudText>
-            <div Class="d-flex align-self-center justify-end">
-                @if (Node != null && Node.Statics != null && Node?.Statics.Count() > 0)
+            <div Class="d-flex">
+                @if (Node != null && Node.ConnectedUsers != null && Node.ConnectedUsers.FirstOrDefault() != null)
                 {
-                    @foreach (var item in Node.Statics)
-                    {
-                        <MudText Class="align-self-center mt-1 ml-1" Typo="Typo.caption" Style="@($"color:{WHColorHelper.GetSystemTypeColor(@item.Destination)};")">@item.Destination.ToString()</MudText>
-                    }
-                }
-            </div>
-        </div>
-            @if (Node != null && Node.ConnectedUsers != null && Node.ConnectedUsers.FirstOrDefault() != null)
-            {
-                <div Class="d-flex">
                     <MudTooltip Arrow="true" Placement="Placement.Bottom">
                         <ChildContent>
                             <MudIcon Icon="@Icons.Material.Filled.Group" Color=Color.Default Size="Size.Small" />
@@ -109,8 +98,18 @@
                         </TooltipContent>
                     </MudTooltip>
                     <MudText Class="align-self-stretch ml-1 mt-1" Typo="Typo.caption">@Node?.ConnectedUsers?.FirstOrDefault()</MudText>
-                </div>
-            }
+                }
+            </div>
+            <div Class="d-flex align-self-center justify-end">
+                @if (Node != null && Node.Statics != null && Node?.Statics.Count() > 0)
+                {
+                    @foreach (var item in Node.Statics)
+                    {
+                        <MudText Class="align-self-center mt-1 ml-1" Typo="Typo.caption" Style="@($"color:{WHColorHelper.GetSystemTypeColor(@item.Destination)};")">@item.Destination.ToString()</MudText>
+                    }
+                }
+            </div>
+        </div>
     </MudCardContent>
 </MudCard>
 
