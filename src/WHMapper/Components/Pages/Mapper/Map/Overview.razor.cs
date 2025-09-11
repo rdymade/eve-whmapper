@@ -233,6 +233,7 @@ public partial class Overview : IAsyncDisposable
                     EveMapperRealTime.WormholeSystemStatusChanged += OnWormholeSystemStatusChanged;
                     EveMapperRealTime.WormholeNameExtensionChanged += OnWormholeNameExtensionChanged;
                     EveMapperRealTime.WormholeAlternateNameChanged += OnWormholeAlternateNameChanged;
+                    EveMapperRealTime.WormholeSystemTagChanged += OnWormholeSystemTagChanged;
 
                     EveMapperRealTime.LinkAdded += OnLinkAdded;
                     EveMapperRealTime.LinkRemoved += OnLinkRemoved;
@@ -272,6 +273,8 @@ public partial class Overview : IAsyncDisposable
             EveMapperRealTime.WormholeSystemStatusChanged -= OnWormholeSystemStatusChanged;
             EveMapperRealTime.WormholeNameExtensionChanged -= OnWormholeNameExtensionChanged;
             EveMapperRealTime.WormholeAlternateNameChanged -= OnWormholeAlternateNameChanged;
+            EveMapperRealTime.WormholeSystemTagChanged += OnWormholeSystemTagChanged;
+
             EveMapperRealTime.LinkAdded -= OnLinkAdded;
             EveMapperRealTime.LinkRemoved -= OnLinkRemoved;
             EveMapperRealTime.LinkChanged -= OnLinkChanged;
@@ -350,7 +353,7 @@ public partial class Overview : IAsyncDisposable
                 _blazorDiagram.UnregisterBehavior<DragMovablesBehavior>();
                 _blazorDiagram.RegisterBehavior(new CustomDragMovablesBehavior(_blazorDiagram));
                 _blazorDiagram.Options.Zoom.Enabled = true;
-                _blazorDiagram.Options.Zoom.Inverse = false;
+                _blazorDiagram.Options.Zoom.Inverse = true;
                 _blazorDiagram.Options.Links.EnableSnapping = false;
                 _blazorDiagram.Options.AllowMultiSelection = true;
                 _blazorDiagram.RegisterComponent<EveSystemNodeModel, EveSystemNode>();
@@ -407,6 +410,7 @@ public partial class Overview : IAsyncDisposable
                 whSysNode.OnLocked += OnWHSystemNodeLockedAsync;
                 whSysNode.OnSystemStatusChanged += OnWHSystemStatusChangeAsync;
                 whSysNode.OnAlternateNameChanged += OnAlternateNameChangedAsync;
+                whSysNode.OnSystemTagChanged += OnSystemTagChangedAsync;
 
                 return whSysNode;
             }
@@ -837,6 +841,33 @@ public partial class Overview : IAsyncDisposable
         }
     }
 
+    private async void OnSystemTagChangedAsync(EveSystemNodeModel whNodeModel)
+    {
+        if (whNodeModel != null)
+        {
+            //save system tag to db
+            var wh = await DbWHSystems.GetById(whNodeModel.IdWH);
+            if (wh != null)
+            {
+                wh.SystemTag = whNodeModel.SystemTag;
+                if (await DbWHSystems.Update(whNodeModel.IdWH, wh) == null)
+                {
+                    Snackbar?.Add("Update wormhole node system tag db error", Severity.Error);
+                    return;
+                }
+
+                _ = Task.Run(async () =>
+                {
+                    WHMapperUser? primaryAccount = await GetPrimaryAccountAsync();
+                    if (primaryAccount != null)
+                    {
+                        await EveMapperRealTime.NotifySystemTagChanged(primaryAccount.Id, whNodeModel.IdWHMap, whNodeModel.IdWH, whNodeModel.SystemTag);
+                    }
+                });
+            }
+        }
+    }
+
     #endregion
 
     #region Diagram Actions
@@ -937,6 +968,7 @@ public partial class Overview : IAsyncDisposable
                 newSystemNode.OnLocked += OnWHSystemNodeLockedAsync;
                 newSystemNode.OnSystemStatusChanged += OnWHSystemStatusChangeAsync;
                 newSystemNode.OnAlternateNameChanged += OnAlternateNameChangedAsync;
+                newSystemNode.OnSystemTagChanged += OnSystemTagChangedAsync;
 
                 _blazorDiagram?.Nodes?.Add(newSystemNode);
                 await EveMapperRealTime.NotifyWormoleAdded(accountID, mapId.Value, newWHSystem.Id);
@@ -1773,6 +1805,7 @@ public partial class Overview : IAsyncDisposable
                     newSystemNode.OnLocked += OnWHSystemNodeLockedAsync;
                     newSystemNode.OnSystemStatusChanged += OnWHSystemStatusChangeAsync;
                     newSystemNode.OnAlternateNameChanged += OnAlternateNameChangedAsync;
+                    newSystemNode.OnSystemTagChanged += OnSystemTagChangedAsync;
                     _blazorDiagram?.Nodes?.Add(newSystemNode);
                 }
                 else
@@ -2059,6 +2092,32 @@ public partial class Overview : IAsyncDisposable
         catch (Exception ex)
         {
             Logger.LogError(ex, "On NotifyWormholeAlternateNameChanged error");
+        }
+        finally
+        {
+            _semaphoreSlim2.Release();
+        }
+    }
+
+    private async Task OnWormholeSystemTagChanged(int accountID, int mapId, int whId, string? systemTag)
+    {
+        await _semaphoreSlim2.WaitAsync();
+        try
+        {
+            var accounts = await GetAccountsAsync();
+            if (MapId.HasValue && MapId.Value == mapId && accounts != null && accounts.FirstOrDefault(x => x.Id == accountID) == null)
+            {
+                var node = await GetSystemNode(whId);
+                if (node != null && node.SystemTag != systemTag)
+                {
+                    node.SetSystemTag(systemTag);
+                    node.Refresh();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "On NotifyWormholeSystemTagChanged error");
         }
         finally
         {
